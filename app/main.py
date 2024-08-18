@@ -1,5 +1,6 @@
 from fasthtml.common import *
 from util import generate_responses
+import sqlite3
 
 app, router = fast_app(
     hdrs=[Style("""
@@ -16,6 +17,16 @@ span.kbd-style {
 """)]
 )
 
+# create data/demo.db if it doesn't exist
+if not os.path.exists("demo.db"):
+    with sqlite3.connect("demo.db") as db:
+        cur = db.cursor()
+        cur.execute("CREATE TABLE IF NOT EXISTS policies (id INTEGER PRIMARY KEY, text TEXT)")
+        cur.execute("CREATE TABLE IF NOT EXISTS responses (id INTEGER PRIMARY KEY, policy_id INTEGER, political_leaning TEXT, age INTEGER, ethnicity TEXT, gender TEXT, education_level TEXT, party TEXT, text TEXT)")
+        db.commit()
+
+db = sqlite3.connect("demo.db")
+cur = db.cursor()
 
 def response_card(response):
     demographic_info, text = response
@@ -40,7 +51,15 @@ async def get():
 @router("/")
 async def post(policy: str):
     print("Genearating responses...")
-    responses = generate_responses(policy)
-    return Div(*[response_card(response) for response in responses])
+    print("DEBUG", policy)
+    cur.execute("INSERT INTO policies (text) VALUES (?)", (policy,))
+    db.commit()
+    policy_id = cur.lastrowid
+    policy_responses = generate_responses(policy)
+    for response in policy_responses:
+        cur.execute("INSERT INTO responses (policy_id, political_leaning, age, ethnicity, gender, education_level, party, text) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (policy_id, *response[0], response[1]))
+        db.commit()
+    return Div(*[response_card(response) for response in policy_responses])
 
 serve()
