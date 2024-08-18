@@ -20,7 +20,7 @@ span.kbd-style {
 def response_card(response):
     demographic_info, text = response
     demographics = list(demographic_info.values())
-    print(demographics)
+    
     return Card(
         Div(*[Span(str(demographic), cls="kbd-style") for demographic in demographics], cls="card-header"),
         Div(text, cls="card-body", style="margin-top: 10px;"),
@@ -29,16 +29,13 @@ def response_card(response):
 
 @router("/")
 async def get():
-    add = Form(
+    form = Form(
             Textarea(id="policy", name="policy", placeholder="Draft Policy", required=True),
             Button("Submit", type="submit"),
             hx_post="/", target_id='response-list', hx_swap="beforeend")
 
-    card = Card(id="response-list",
-            header=add, footer=Div()),
-    
     title = "Demo"
-    return Title(title), Main(H1(title), card, cls='container')
+    return Title(title), Main(H1(title), form, Div(id="response-list"), cls='container')
 
 @router("/")
 async def post(policy: str):
