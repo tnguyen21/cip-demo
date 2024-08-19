@@ -38,7 +38,6 @@ cur = db.cursor()
 def response_card(response):
     # TODO this is hacky. we do this because response format from generate_responses is different from querying sqlite
     # and I'm too lazy to find a better way to do this
-    print("DEBUG", response)
     if len(response) == 2:
         demographics, text = response[0].values(), response[1]
     else:
@@ -80,11 +79,26 @@ async def post(policy: str):
     return Div(*[response_card(response) for response in policy_responses])
 
 @router("/view")
-async def get(id: int):
+async def get(id: int, property: str = None, filter: str = None):
     policy = cur.execute("SELECT * FROM policies WHERE id = ?", (id,)).fetchone()
-    responses = cur.execute("SELECT * FROM responses WHERE policy_id = ?", (id,)).fetchall()
+    if property and filter:
+        responses = cur.execute(f"SELECT * FROM responses WHERE policy_id = ? AND {property} = ?", (id, filter)).fetchall()
+    else:
+        responses = cur.execute("SELECT * FROM responses WHERE policy_id = ?", (id,)).fetchall()
+    
+    # TODO hacky and inelegant. we'd have to do this for every property we want to filter by
+    # should figure out a way to do this with SQL statements/dataclasses and dropdown filter (like in excel sheets)
+    filter_buttons = Div(
+        A("All", href=f"/view?id={id}", cls="btn btn-primary"),
+        A("Liberal", href=f"/view?id={id}&property=political_leaning&filter=Liberal", cls="btn btn-primary"),
+        A("Conservative", href=f"/view?id={id}&property=political_leaning&filter=Conservative", cls="btn btn-primary"),
+        A("Moderate", href=f"/view?id={id}&property=political_leaning&filter=Moderate", cls="btn btn-primary"),
+        style="margin-bottom: 10px;"
+    )
     policy_card = Card(
         Div(policy[1], cls="card-body"),
+        *filter_buttons,
+        header=H2("Policy Text"),
         cls="card"
     )
     response_cards = [response_card(response) for response in responses]
